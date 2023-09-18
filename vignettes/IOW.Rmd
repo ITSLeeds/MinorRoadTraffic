@@ -1,0 +1,79 @@
+---
+title: "Isle of Wight Demoe"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{IOW}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+library(MinorRoadTraffic)
+```
+
+Download raw data
+
+```{r download}
+osm_raw = download_osm("Isle of Wight, UK")
+aadt = download_dft_aadt()
+```
+
+Subset AADT data to the Isle of Wight in 2018
+
+```{r subset}
+aadt = aadt[aadt$Year == 2018,]
+aadt = aadt[aadt$Local_authority_name == "Isle of Wight",]
+aadt$traffic_flow = aadt$All_motor_vehicles
+```
+
+Make a bounding polygon for the study area, and crop the OSM data to that area.
+
+```{r clip}
+bounds = make_convex_hull(aadt, 5000)
+osm_clean = extract_from_osm(osm_raw, bounds)
+network = osm_clean$network
+points = osm_clean$points
+junctions = osm_clean$junctions
+rm(osm_clean)
+```
+
+In the OSM roads don't always have a ref value (e.g. A123), so lets clean that up.
+
+```{r clean_ref}
+network = osm_fill_ref(network)
+```
+Before joining the AADT data to the road network, lets check that the IDs match
+
+```{r check_ref}
+summary(unique(aadt$Road_name[aadt$Road_type == "Major"]) %in% unique(network$ref))
+```
+In  this case there are no missing IDs, sometimes a manual fix to the data is needed.
+
+```{r assign_aadt}
+aadt_assign = assign_aadt_major(network, junctions, aadt, bounds)
+network = aadt_assign$network
+junctions_major_minor = aadt_assign$junctions_major_minor
+```
+Lets make a plot of our progress. Here we can see the minor roads in grey and the major roads coloured by their AADT. Junctions between major and minor roads are highlighted in blue. These junctions are important as they are the places traffic can leave the major road network and join the minor road network.
+
+```{r plot1}
+library(tmap)
+tm_shape(network) +
+  tm_lines(lwd = 2, col = "traffic_flow") +
+  tm_shape(junctions_major_minor) +
+  tm_dots(col = "blue", size = 0.08)
+```
+Now lets analyse the minor road network
+
+
+```{r plot1}
+network = minor_roads_distance(network, junctions_major_minor)
+```
+
