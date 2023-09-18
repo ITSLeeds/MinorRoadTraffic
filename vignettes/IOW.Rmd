@@ -1,5 +1,5 @@
 ---
-title: "Isle of Wight Demoe"
+title: "Isle of Wight Demo"
 output: rmarkdown::html_vignette
 vignette: >
   %\VignetteIndexEntry{IOW}
