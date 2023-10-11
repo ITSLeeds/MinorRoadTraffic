@@ -15,7 +15,7 @@ knitr::opts_chunk$set(
 ```
 
 ```{r setup}
-library(MinorRoadTraffic)
+#library(MinorRoadTraffic)
 ```
 
 Download raw data
@@ -24,6 +24,26 @@ Download raw data
 osm_raw = download_osm("Isle of Wight, UK")
 aadt = download_dft_aadt()
 ```
+
+We also need some zonal statistics, here we will use data from the [Place-Based Carbon Calculator](https://www.carbon.place) and employment statistics from [NOMIS](https://www.nomisweb.co.uk)
+
+```{r read_lsoa}
+dir.create(file.path(tempdir(),"lsoa"))
+unzip("../inst/exdata/PBCC_LSOA_data.zip", exdir = file.path(tempdir(),"lsoa"))
+unzip("../inst/exdata/infuse_lsoa_lyr_2011_clipped.zip", exdir = file.path(tempdir(),"lsoa"))
+
+zones = sf::st_read(file.path(tempdir(),"lsoa","infuse_lsoa_lyr_2011_clipped.shp"))
+pbcc = read.csv(file.path(tempdir(),"lsoa","PBCC_LSOA_data.csv"))
+jobs = read.csv("../inst/exdata/LSOA_employment_2018.csv", skip = 8)
+
+zones = zones[,c("geo_code")]
+pbcc = pbcc[,c("LSOA11","pop_2018","cars_percap_2018")]
+jobs = jobs[,c("mnemonic","Employment")]
+
+zones = dplyr::left_join(zones, pbcc, by = c("geo_code" = "LSOA11"))
+zones = dplyr::left_join(zones, jobs, by = c("geo_code" = "mnemonic"))
+```
+
 
 Subset AADT data to the Isle of Wight in 2018
 
@@ -42,6 +62,12 @@ network = osm_clean$network
 points = osm_clean$points
 junctions = osm_clean$junctions
 rm(osm_clean)
+```
+
+And we will subset our zonal statistics
+
+```{r clip_stats}
+zones = zones[bounds,]
 ```
 
 In the OSM roads don't always have a ref value (e.g. A123), so lets clean that up.
@@ -73,7 +99,15 @@ tm_shape(network) +
 Now lets analyse the minor road network
 
 
-```{r plot1}
+```{r minor_distances}
 network = minor_roads_distance(network, junctions_major_minor)
 ```
+Calculate the centrality of minor roads. Centrality is a measure of the importance of a road, with higher centrality suggestion it is a road that connects different places together. Note calculating centrality on large networks is time-consuming, so this function breaks the network into zones based on the major road network. 
+
+```{r minor_centrality}
+network = minor_roads_centrality(network)
+```
+
+
+
 
