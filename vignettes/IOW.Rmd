@@ -151,7 +151,9 @@ m1 = lm(traffic_flow_minor ~ log(major_flow) + log(nearest_junc_dist) + log(std_
           log(road_density) + log(pop_2018) + log(cars_percap_2018),
         data = network)
 summary(m1)
+```
 
+```{r glm_plot}
 plot(network$traffic_flow_minor[!is.na(network$traffic_flow_minor)], predict(m1),
      xlab = "Obsereved AADT",
      ylab = "Predicted AADT")
@@ -164,18 +166,21 @@ library(GWmodel)
 
 #GWR uses points not lines
 cents = st_centroid(network)
+cents$log_std_centrality = log(cents$std_centrality)
+cents$log_nearest_junc_dist = log(cents$nearest_junc_dist)
+cents$log_major_flow = log(cents$major_flow)
+
 cents_test = cents[!is.na(cents$traffic_flow_minor),]
 
 DM = gw.dist(dp.locat = st_coordinates(cents_test))
-cents_test = as(cents_test, "Spatial")
 
 # Define Equation
-eq = traffic_flow_minor ~ log(std_centrality) + log(nearest_junc_dist) + log(major_flow) +
+eq = traffic_flow_minor ~ log_std_centrality + log_nearest_junc_dist + log_major_flow +
   pop_2018 + cars_percap_2018
 
 # Determine the adaptive bandwidth
 abw <- bw.ggwr(eq,
-               data = cents_test,
+               data = as(cents_test, "Spatial"),
                family = "poisson",
                approach = "AICc",
                kernel = "bisquare", 
@@ -184,7 +189,7 @@ abw <- bw.ggwr(eq,
 
 # Fit GWPR
 gwpr4 <- ggwr.basic(eq, 
-                    data = cents_test, 
+                    data = as(cents_test, "Spatial"), 
                     family = "poisson",
                     bw = abw,
                     kernel = "gaussian",
@@ -192,11 +197,45 @@ gwpr4 <- ggwr.basic(eq,
                     dMat = DM)
 
 gwpr4
-gwpr4_results <- sf::st_as_sf(gwpr4$SDF)
-RMSE_GWPR4 <- sqrt(sum((gwpr4_results$residual)^2)/nrow(gwpr4_results))
 
-plot(cents_test$traffic_flow_minor, predict(gwpr4),
+
+```
+
+
+```{r, gwr_plot}
+plot(cents_test$traffic_flow_minor,gwpr4$glms$fitted.values,
      xlab = "Obsereved AADT",
      ylab = "Predicted AADT")
 abline(0,1)
 ```
+
+Now predict traffic for all roads
+
+```{r, GWR model}
+cents_predict = cents[is.na(cents$traffic_flow_minor),]
+#cents_predict = cents_predict[is.na(cents_predict$traffic_flow),]
+cents_test = cents[!is.na(cents$traffic_flow_minor),]
+DM1 = gw.dist(dp.locat = st_coordinates(cents_test), rp.locat = st_coordinates(cents_predict))
+DM2 = gw.dist(dp.locat = st_coordinates(cents_test))
+
+# Fit GWPR
+pred = gwr.predict(eq, 
+                    data=as(cents_test, "Spatial"),
+                    predictdata = as(cents_predict, "Spatial"),
+                    bw = abw,
+                    kernel = "gaussian",
+                    adaptive = TRUE,
+                    dMat1 = DM1,
+                    dMat2 = DM2)
+prediction = st_as_sf(pred$SDF) 
+
+```
+
+```{r plot5}
+tm_shape(prediction) +
+  tm_dots(col = "prediction")
+```
+
+Join back onto network
+
+
