@@ -23,7 +23,7 @@ Download raw data
 Fix for internet problems `assign("has_internet_via_proxy", TRUE, environment(curl::has_internet))`
 
 ```{r download}
-osm_raw = osmextract::oe_get("Isle of Wight, UK", 
+osm_raw = osmextract::oe_get("Isle of Wight", 
                              extra_tags = c("ref","highway","junction","maxspeed"))
 
 aadt = download_dft_aadt()
@@ -35,14 +35,14 @@ We also need some zonal statistics, here we will use data from the [Place-Based 
 
 zones = download_lsoa()
 pbcc = download_pbcc()
-jobs = read.csv("../inst/exdata/LSOA_employment_2018.csv", skip = 8)
+#jobs = read.csv("../inst/exdata/LSOA_employment_2018.csv", skip = 8)
 
 zones = zones[,c("LSOA11CD")]
 pbcc = pbcc[,c("LSOA11","pop_2018","cars_percap_2018")]
-jobs = jobs[,c("mnemonic","Employment")]
+#jobs = jobs[,c("mnemonic","Employment")]
 
 zones = dplyr::left_join(zones, pbcc, by = c("LSOA11CD" = "LSOA11"))
-zones = dplyr::left_join(zones, jobs, by = c("LSOA11CD" = "mnemonic"))
+#zones = dplyr::left_join(zones, jobs, by = c("LSOA11CD" = "mnemonic"))
 ```
 
 
@@ -64,7 +64,7 @@ junctions = osm_clean$junctions
 rm(osm_clean, osm_raw)
 ```
 
-And we will subset our zonal statistics
+And we will subset our zone statistics
 
 ```{r clip_stats}
 zones = zones[bounds,]
@@ -108,7 +108,7 @@ Calculate the centrality of minor roads. Centrality is a measure of the importan
 network = road_centrality(network)
 ```
 
-Lets check the reults.
+Lets check the results.
 
 ```{r plot1}
 tm_shape(network) +
@@ -119,5 +119,84 @@ Calculate road density
 
 ```{r density}
 density = road_density(network, zones)
+network = density$network
+zones = density$zones
 
+```
+```{r plot2}
+tm_shape(network) +
+  tm_lines(lwd = 2, col = "road_density")
+```
+
+We can join on other variables from the zones data
+
+```{r plot2}
+network = sf::st_join(network, zones[,c("pop_2018","cars_percap_2018")], largest = TRUE)
+```
+
+
+Now we can assign our minor road traffic data and attempt to model the missing data
+
+```{r assign_minor_aadt}
+aadt_minor <- st_buffer(aadt[aadt$Road_type == "Minor",], 6)
+aadt_minor <- aadt_minor[,"traffic_flow"]
+names(aadt_minor)[1] = "traffic_flow_minor"
+network <- st_join(network, aadt_minor)
+summary(is.na(network$traffic_flow_minor))
+```
+Build a simple linear model
+
+```{r simple_model}
+m1 = lm(traffic_flow_minor ~ log(major_flow) + log(nearest_junc_dist) + log(std_centrality) +
+          log(road_density) + log(pop_2018) + log(cars_percap_2018),
+        data = network)
+summary(m1)
+
+plot(network$traffic_flow_minor[!is.na(network$traffic_flow_minor)], predict(m1),
+     xlab = "Obsereved AADT",
+     ylab = "Predicted AADT")
+abline(0,1)
+```
+Now try a Geographically Weighted Regression
+
+```{r, GWR model}
+library(GWmodel)
+
+#GWR uses points not lines
+cents = st_centroid(network)
+cents_test = cents[!is.na(cents$traffic_flow_minor),]
+
+DM = gw.dist(dp.locat = st_coordinates(cents_test))
+cents_test = as(cents_test, "Spatial")
+
+# Define Equation
+eq = traffic_flow_minor ~ log(std_centrality) + log(nearest_junc_dist) + log(major_flow) +
+  pop_2018 + cars_percap_2018
+
+# Determine the adaptive bandwidth
+abw <- bw.ggwr(eq,
+               data = cents_test,
+               family = "poisson",
+               approach = "AICc",
+               kernel = "bisquare", 
+               adaptive = TRUE,
+               dMat = DM)
+
+# Fit GWPR
+gwpr4 <- ggwr.basic(eq, 
+                    data = cents_test, 
+                    family = "poisson",
+                    bw = abw,
+                    kernel = "gaussian",
+                    adaptive = TRUE,
+                    dMat = DM)
+
+gwpr4
+gwpr4_results <- sf::st_as_sf(gwpr4$SDF)
+RMSE_GWPR4 <- sqrt(sum((gwpr4_results$residual)^2)/nrow(gwpr4_results))
+
+plot(cents_test$traffic_flow_minor, predict(gwpr4),
+     xlab = "Obsereved AADT",
+     ylab = "Predicted AADT")
+abline(0,1)
 ```
