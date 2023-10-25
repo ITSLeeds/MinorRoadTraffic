@@ -1,4 +1,4 @@
-#' Make convex hull around traffic points
+#' Calculate centrality of minor roads
 #'
 #' @param lines road network
 #' @param threshold minimum number of minor roads to include in a zone, default 5
@@ -18,7 +18,7 @@ road_centrality = function(lines, threshold = 5){
   # used for the bound for the subgraphs
   minor_points <- sf::st_cast(sf::st_geometry(lines_minor), "POINT")
 
-  ### genarete the zones split by major road
+  ### generate the zones split by major road
   zones <- lwgeom::st_split(bounds, road_cut)
   # use major road to cut the study bound
   zones <- sf::st_collection_extract(zones)
@@ -32,7 +32,7 @@ road_centrality = function(lines, threshold = 5){
   zones$id <- 1:nrow(zones)
 
   ### Free up memory
-  rm(road_cut, zones_inter, all_points )
+  rm(road_cut, zones_inter )
   gc()
 
 
@@ -72,7 +72,7 @@ road_centrality = function(lines, threshold = 5){
   lines_major$centrality = NA
   lines_major$std_centrality = NA
 
-  lines_minor = sf::st_transform(lines_minor, 27700)
+  lines_major = sf::st_transform(lines_major, 4326)
 
   lines = rbind(lines_major, lines_minor)
 

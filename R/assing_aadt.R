@@ -112,7 +112,7 @@ assign_aadt_major = function(lines, junctions, traffic, bounds,
   major_int = lengths(major_int)
   both_int = ifelse(minor_int > 0 & major_int > 0, TRUE, FALSE)
 
-  junc_majmi = junctions[both_int, ]
+  junc_majmi = junctions[both_int,]
 
   ### Match Major Road AADT onto junctions
   junc_majmi <- sf::st_join(junc_majmi, lines_major[ ,"traffic_flow"])
@@ -265,7 +265,7 @@ minor_roads_distance = function(lines, junc_majmi){
                                                           junc_majmi$from_id)]
 
 
-  lines_minor <- sf::st_transform(lines_minor, 27700)
+  #lines_minor <- sf::st_transform(lines_minor, 27700)
   lines_minor <- lines_minor[!is.na(lines_minor$major_flow), ]
 
   lines_major <- lines[lines$road_type == "major",]
@@ -273,7 +273,7 @@ minor_roads_distance = function(lines, junc_majmi){
   lines_major$nearest_junc_dist <- NA
   lines_major$major_flow <- NA
 
-  lines_major <- sf::st_transform(lines_major, 27700)
+  #lines_major <- sf::st_transform(lines_major, 27700)
 
   lines = rbind(lines_major, lines_minor)
 

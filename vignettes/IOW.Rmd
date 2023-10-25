@@ -20,28 +20,29 @@ knitr::opts_chunk$set(
 
 Download raw data
 
+Fix for internet problems `assign("has_internet_via_proxy", TRUE, environment(curl::has_internet))`
+
 ```{r download}
-osm_raw = download_osm("Isle of Wight, UK")
+osm_raw = osmextract::oe_get("Isle of Wight, UK", 
+                             extra_tags = c("ref","highway","junction","maxspeed"))
+
 aadt = download_dft_aadt()
 ```
 
 We also need some zonal statistics, here we will use data from the [Place-Based Carbon Calculator](https://www.carbon.place) and employment statistics from [NOMIS](https://www.nomisweb.co.uk)
 
 ```{r read_lsoa}
-dir.create(file.path(tempdir(),"lsoa"))
-unzip("../inst/exdata/PBCC_LSOA_data.zip", exdir = file.path(tempdir(),"lsoa"))
-unzip("../inst/exdata/infuse_lsoa_lyr_2011_clipped.zip", exdir = file.path(tempdir(),"lsoa"))
 
-zones = sf::st_read(file.path(tempdir(),"lsoa","infuse_lsoa_lyr_2011_clipped.shp"))
-pbcc = read.csv(file.path(tempdir(),"lsoa","PBCC_LSOA_data.csv"))
+zones = download_lsoa()
+pbcc = download_pbcc()
 jobs = read.csv("../inst/exdata/LSOA_employment_2018.csv", skip = 8)
 
-zones = zones[,c("geo_code")]
+zones = zones[,c("LSOA11CD")]
 pbcc = pbcc[,c("LSOA11","pop_2018","cars_percap_2018")]
 jobs = jobs[,c("mnemonic","Employment")]
 
-zones = dplyr::left_join(zones, pbcc, by = c("geo_code" = "LSOA11"))
-zones = dplyr::left_join(zones, jobs, by = c("geo_code" = "mnemonic"))
+zones = dplyr::left_join(zones, pbcc, by = c("LSOA11CD" = "LSOA11"))
+zones = dplyr::left_join(zones, jobs, by = c("LSOA11CD" = "mnemonic"))
 ```
 
 
@@ -59,9 +60,8 @@ Make a bounding polygon for the study area, and crop the OSM data to that area.
 bounds = make_convex_hull(aadt, 5000)
 osm_clean = extract_from_osm(osm_raw, bounds)
 network = osm_clean$network
-points = osm_clean$points
 junctions = osm_clean$junctions
-rm(osm_clean)
+rm(osm_clean, osm_raw)
 ```
 
 And we will subset our zonal statistics
@@ -105,9 +105,19 @@ network = minor_roads_distance(network, junctions_major_minor)
 Calculate the centrality of minor roads. Centrality is a measure of the importance of a road, with higher centrality suggestion it is a road that connects different places together. Note calculating centrality on large networks is time-consuming, so this function breaks the network into zones based on the major road network. 
 
 ```{r minor_centrality}
-network = minor_roads_centrality(network)
+network = road_centrality(network)
 ```
 
+Lets check the reults.
 
+```{r plot1}
+tm_shape(network) +
+  tm_lines(lwd = 2, col = "std_centrality")
+```
 
+Calculate road density
 
+```{r density}
+density = road_density(network, zones)
+
+```
