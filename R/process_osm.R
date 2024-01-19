@@ -15,6 +15,12 @@ extract_from_osm = function(network, bounds,
 
                             ){
 
+  ### The CRS of bounds might be different if counts from other
+  ### sources are used
+  if (st_crs(bounds) != st_crs(network)){
+    bounds <- st_transform(bounds,crs = st_crs(network))
+  }
+
   ### Return the osmdata within the boundary
   network <- network[bounds, ]
 
