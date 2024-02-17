@@ -166,7 +166,7 @@ assign_aadt_major = function(lines, junctions, traffic, bounds,
                        major_ref = c("motorway","motorway_link","primary",
                                       "primary_link","trunk","trunk_link")){
 
-  # Transform to Britsh National Grid
+  # Transform to British National Grid
   lines = sf::st_transform(lines, 27700)
   junctions = sf::st_transform(junctions, 27700)
   traffic = sf::st_transform(traffic, 27700)
@@ -381,8 +381,3 @@ minor_roads_distance = function(lines, junc_majmi){
 
 
 }
-
-
-
-
-

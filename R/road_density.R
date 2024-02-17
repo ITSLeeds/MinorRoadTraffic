@@ -43,26 +43,29 @@ line_segment <- function(l, segment_length = NA) {
 
 road_density = function(lines, zones, segment_length = 1000){
 
-  int_func <- function(zone, lines){
-    zone <- sf::st_sfc(zone, crs = 4326)
-    line <-  lines[zone,]
-    if(nrow(line) > 0){
-      line <- sf::st_intersection(zone, line)
-      road_length <- sum(as.numeric(sf::st_length(line))) / 1000
+  int_func <- function(zone){
+    t_zone <- zones[zone,]
+    line <- lines[zone_inter[[zone]],]
+
+    if(nrow(line) == 0){
+      return(0)
     } else {
-      road_length <- 0
+      line <- sf::st_intersection(t_zone, line)
+      density <- sum(as.numeric(sf::st_length(line))) / 1000
+      return(density)
     }
-
-    #qtm(zone) + qtm(line, lines.col = "blue")
-    lsoa_area <- as.numeric(sf::st_area(zone)) / 1e6
-
-    data.frame(road_km = road_length,
-               area_km2 = lsoa_area,
-               road_density = road_length / lsoa_area)
   }
-  density <- pbapply::pblapply(sf::st_geometry(zones), int_func, lines = lines)
-  density <- dplyr::bind_rows(density)
-  zones <- cbind(zones, density)
+
+  zone_inter <- sf::st_intersects(zones,lines)
+
+  road_km <- pbapply::pbvapply(seq_along(zone_inter),
+                               int_func,
+                               FUN.VALUE = numeric(1))
+
+  zones$road_km <- road_km
+
+  zones1 <- zones |> mutate(area_km2 = as.numeric(st_area(geometry))/1e6,
+                            road_density = road_km/area_km2)
 
   message("Segmenting roads into sections of less than ",segment_length," metres")
   lines <- dplyr::group_split(lines, 1:nrow(lines))
