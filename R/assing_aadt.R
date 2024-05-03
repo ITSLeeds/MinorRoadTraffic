@@ -162,9 +162,20 @@ osm_fill_ref2 = function(lines,
 
 #' @export
 #'
-assign_aadt_major = function(lines, junctions, traffic, bounds,
-                       major_ref = c("motorway","motorway_link","primary",
-                                      "primary_link","trunk","trunk_link")){
+assign_aadt_major = function(
+    lines,
+    junctions,
+    traffic,
+    bounds,
+    major_ref = c(
+      "motorway",
+      "motorway_link",
+      "primary",
+      "primary_link",
+      "trunk",
+      "trunk_link"
+    )
+) {
 
   # Transform to British National Grid
   lines = sf::st_transform(lines, 27700)
@@ -201,7 +212,7 @@ assign_aadt_major = function(lines, junctions, traffic, bounds,
   res.major <- res.major[!duplicated(res.major$osm_id),]
 
   ### Join onto the original lines data
-  lines_major <- dplyr::left_join(lines_major,res.major, by = c("osm_id" = "osm_id"))
+  lines_major <- dplyr::left_join(lines_major,res.major, by = c("osm_id"))
   rm(lines.nona, roadnames, res.major)
 
   ### Find Junctions between minor and major roads
@@ -216,7 +227,7 @@ assign_aadt_major = function(lines, junctions, traffic, bounds,
 
   ### Match Major Road AADT onto junctions
   junc_majmi <- sf::st_join(junc_majmi, lines_major[ ,"traffic_flow"])
-  junc_majmi <- junc_majmi[!duplicated(junc_majmi$geom), ]
+  junc_majmi <- junc_majmi |> dplyr::summarise(traffic_flow = mean(traffic_flow,na.rm = T),.by=x)
 
   lines_minor$traffic_flow = NA
 
