@@ -49,7 +49,7 @@ Subset AADT data to Oxfordshire in 2018
 ```{r subset}
 aadt = aadt[aadt$Year == 2018,]
 aadt = aadt[aadt$Local_authority_name == "Oxfordshire",]
-aadt$traffic_flow = aadt$All_motor_vehicles
+aadt$traffic_flow = aadt$all_motor_vehicles
 ```
 
 Make a bounding polygon for the study area, and crop the OSM data to that area.
