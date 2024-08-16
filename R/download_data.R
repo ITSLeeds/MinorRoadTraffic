@@ -26,7 +26,7 @@ download_dft_aadt <- function(
     ){
 
   dir.create(file.path(tempdir(),"dftaadt"))
-  utils::download.file(url, file.path(tempdir(),"dftaadt","dft_traffic_counts_aadf.zip"))
+  utils::download.file(url, file.path(tempdir(),"dftaadt","dft_traffic_counts_aadf.zip"), mode = "wb")
   utils::unzip(file.path(tempdir(),"dftaadt","dft_traffic_counts_aadf.zip"),
                exdir = file.path(tempdir(),"dftaadt"))
   #fls = list.files(file.path(tempdir(),"dftaadt"))
