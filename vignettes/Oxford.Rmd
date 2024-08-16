@@ -59,6 +59,11 @@ bounds = make_convex_hull(aadt, 5000)
 osm_clean = extract_from_osm(osm_raw, bounds)
 network = osm_clean$network
 junctions = osm_clean$junctions
+
+```
+If needed we can free up some RAM.
+
+```{r free_memeory}
 rm(osm_clean, osm_raw)
 ```
 

@@ -22,7 +22,7 @@ osm_fill_ref = function(lines,
   rm(lines)
 
   ### Get the centroid of each major lines
-  lines_major_cents <- sf::st_coordinates(sf::st_centroid(lines_major))
+  lines_major_cents <- suppressWarnings(sf::st_coordinates(sf::st_centroid(lines_major)))
 
   ### Find the nearest neighbour centroids , and find potentially duplicated ones
   nn = RANN::nn2(lines_major_cents, k = nearest_neighbour)
@@ -94,9 +94,9 @@ osm_fill_ref2 = function(lines,
   )
 
   df_graph <- graph |>
-    dodgr_to_sf() |>
-    st_drop_geometry() |>
-    select(from_id, to_id, highway, way_id, name, ref, junction)
+    dodgr::dodgr_to_sf() |>
+    sf::st_drop_geometry() |>
+    dplyr::select(from_id, to_id, highway, way_id, name, ref, junction)
 
   i <- 1
   check_len <- TRUE
