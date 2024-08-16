@@ -34,14 +34,18 @@ line_segment <- function(l, segment_length = NA) {
 
 
 
-#' Calculate road density
-#' #'
+#' Calculate road density #'
 #' @param lines road network
 #' @param zones zones for stats
 #' @param segment_length max length of a road segment in metres
+#' @param use_centroids logical if true road centroids are used, faster but less
+#'   accurate
+#' @param zones_id character, name of the column in `zones` that has the zone
+#'   ID, default to `names(zones)[1]`
 #' @export
 
-road_density = function(lines, zones, segment_length = 1000){
+road_density = function(lines, zones, segment_length = 1000,
+                        use_centroids = FALSE, zones_id = names(zones)[1]){
 
   int_func <- function(zone){
     t_zone <- zones[zone,]
@@ -50,7 +54,7 @@ road_density = function(lines, zones, segment_length = 1000){
     if(nrow(line) == 0){
       return(0)
     } else {
-      line <- sf::st_intersection(t_zone, line)
+      line <- suppressWarnings(sf::st_intersection(t_zone, line))
       density <- sum(as.numeric(sf::st_length(line))) / 1000
       return(density)
     }
@@ -70,7 +74,7 @@ road_density = function(lines, zones, segment_length = 1000){
   #                           road_density = road_km/area_km2)
 
   message("Segmenting roads into sections of less than ",segment_length," metres")
-  lines <- dplyr::group_split(lines, 1:nrow(lines))
+  lines <- dplyr::group_split(lines, 1:nrow(lines), .keep = FALSE)
 
   lines <- pbapply::pblapply(lines, function(x){
     line_segment(x, segment_length = segment_length)
@@ -78,10 +82,21 @@ road_density = function(lines, zones, segment_length = 1000){
 
   lines <- dplyr::bind_rows(lines)
 
-  lines <- sf::st_join(lines,
-              zones[,c("area_km2","road_km", "road_density")],
-              largest = TRUE
-              )
+  if(use_centroids) {
+    cents <- suppressWarnings(sf::st_centroid(lines))
+    cents <- sf::st_join(cents,
+                         zones[,c(zones_id,"area_km2","road_km", "road_density")]
+    )
+    cents <- sf::st_drop_geometry(cents[,c(zones_id,"area_km2","road_km", "road_density")])
+    lines <- cbind(lines, cents)
+  } else {
+    lines <- sf::st_join(lines,
+                         zones[,c(zones_id,"area_km2","road_km", "road_density")],
+                         largest = TRUE
+    )
+  }
+
+
 
 
   return(list(network = lines, zones = zones))

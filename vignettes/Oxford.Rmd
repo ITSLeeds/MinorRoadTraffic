@@ -81,9 +81,11 @@ network = osm_fill_ref(network)
 Before joining the AADT data to the road network, lets check that the IDs match
 
 ```{r check_ref}
-summary(unique(aadt$Road_name[aadt$Road_type == "Major"]) %in% unique(network$ref))
+summary(unique(aadt$road_name[aadt$road_type == "Major"]) %in% unique(network$ref))
 ```
 In  this case there are no missing IDs, sometimes a manual fix to the data is needed.
+
+Now assing the major road traffic counts to each part of the major road network.
 
 ```{r assign_aadt}
 aadt_assign = assign_aadt_major(network, junctions, aadt, bounds)
@@ -105,6 +107,7 @@ Now lets analyse the minor road network
 ```{r minor_distances}
 network = minor_roads_distance(network, junctions_major_minor)
 ```
+
 Calculate the centrality of minor roads. Centrality is a measure of the importance of a road, with higher centrality suggestion it is a road that connects different places together. Note calculating centrality on large networks is time-consuming, so this function breaks the network into zones based on the major road network. 
 
 ```{r minor_centrality}
@@ -113,35 +116,52 @@ network = road_centrality(network)
 
 Lets check the results.
 
-```{r plot1}
+```{r plot2}
 tm_shape(network) +
   tm_lines(lwd = 2, col = "std_centrality")
 ```
 
-Calculate road density
+Calculate road density. We will use the `use_centroids = TRUE` which is faster but slight less accurate.
 
 ```{r density}
-density = road_density(network, zones)
+density = road_density(network, zones, use_centroids = TRUE)
 network = density$network
 zones = density$zones
 
 ```
-```{r plot2}
+
+An plot the results
+
+```{r plot3}
 tm_shape(network) +
   tm_lines(lwd = 2, col = "road_density")
 ```
 
+The road_density function also add the zone ID to each road. From the first column in `zones`. We can use the ID to join on other zonal data to the road network.
+
+```{r plot4}
+tm_shape(network) +
+  tm_lines(lwd = 2, col = "LSOA11CD")
+```
+
 We can join on other variables from the zones data
 
-```{r plot2}
-network = sf::st_join(network, zones[,c("pop_2018","cars_percap_2018")], largest = TRUE)
+```{r join_zonal_data}
+network = dplyr::left_join(network, 
+                           sf::st_drop_geometry(zones[,c("LSOA11CD","pop_2018","cars_percap_2018")]), 
+                           by = "LSOA11CD")
+```
+
+```{r plot5}
+tm_shape(network) +
+  tm_lines(lwd = 2, col = "cars_percap_2018")
 ```
 
 
 Now we can assign our minor road traffic data and attempt to model the missing data
 
 ```{r assign_minor_aadt}
-aadt_minor <- st_buffer(aadt[aadt$Road_type == "Minor",], 6)
+aadt_minor <- st_buffer(aadt[aadt$road_type == "Minor",], 6)
 aadt_minor <- aadt_minor[,"traffic_flow"]
 names(aadt_minor)[1] = "traffic_flow_minor"
 network <- st_join(network, aadt_minor)
@@ -155,8 +175,10 @@ m1 = lm(traffic_flow_minor ~ log(major_flow) + log(nearest_junc_dist) + log(std_
         data = network)
 summary(m1)
 ```
+We get an R-squared of 0.278 which is not great.
 
-```{r glm_plot}
+
+```{r lm_plot}
 plot(network$traffic_flow_minor[!is.na(network$traffic_flow_minor)], predict(m1),
      xlab = "Obsereved AADT",
      ylab = "Predicted AADT")
@@ -204,6 +226,7 @@ gwpr4
 
 ```
 
+GWR improves the R-squared to 0.48 again not great, but much better.
 
 ```{r, gwr_plot}
 plot(cents_test$traffic_flow_minor,gwpr4$glms$fitted.values,
@@ -234,11 +257,16 @@ prediction = st_as_sf(pred$SDF)
 
 ```
 
-```{r plot5}
-tm_shape(prediction) +
-  tm_dots(col = "prediction")
-```
+
 
 Join back onto network
 
+```{r join_back}
+network_predit = network[is.na(network$traffic_flow_minor),]
+network_predit$prediction = prediction$prediction
+```
 
+```{r plot8}
+tm_shape(network_predit) +
+  tm_dots(col = "prediction")
+```
