@@ -47,8 +47,8 @@ zones = dplyr::left_join(zones, pbcc, by = c("LSOA11CD" = "LSOA11"))
 Subset AADT data to Oxfordshire in 2018
 
 ```{r subset}
-aadt = aadt[aadt$Year == 2018,]
-aadt = aadt[aadt$Local_authority_name == "Oxfordshire",]
+aadt = aadt[aadt$year == 2018,]
+aadt = aadt[aadt$local_authority_name == "Oxfordshire",]
 aadt$traffic_flow = aadt$all_motor_vehicles
 ```
 
