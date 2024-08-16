@@ -64,8 +64,10 @@ road_density = function(lines, zones, segment_length = 1000){
 
   zones$road_km <- road_km
 
-  zones <- zones |> dplyr::mutate(area_km2 = as.numeric(sf::st_area(geometry))/1e6,
-                            road_density = road_km/area_km2)
+  zones$area_km2 <- as.numeric(sf::st_area(zones))/1e6
+  zones$road_density = zones$road_km/zones$area_km2
+  # zones <- zones |> dplyr::mutate(area_km2 = as.numeric(sf::st_area(geometry))/1e6,
+  #                           road_density = road_km/area_km2)
 
   message("Segmenting roads into sections of less than ",segment_length," metres")
   lines <- dplyr::group_split(lines, 1:nrow(lines))
