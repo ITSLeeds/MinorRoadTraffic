@@ -192,11 +192,11 @@ assign_aadt_major = function(
   bound_sfc <- sf::st_sfc(bound_sfg)
 
   ### Separate Major and Minor Roads of the AADT Data
-  traffic_major <- traffic[traffic$Road_type=="Major", ]
-  traffic_minor <- traffic[traffic$Road_type=="Minor", ]
+  traffic_major <- traffic[traffic$road_type=="Major", ]
+  traffic_minor <- traffic[traffic$road_type=="Minor", ]
 
   ### Allocate traffic counts to the major roads
-  roadnames <- unique(traffic_major$Road_name)
+  roadnames <- unique(traffic_major$road_name)
   lines.nona <- lines_major[!is.na(lines_major$ref),]
 
   #Create a working dataset without nas
@@ -248,7 +248,7 @@ assign_aadt_major = function(
 #'
 get.aadt.major <- function(e, traffic_major, lines.nona, roadnames, bound_sfc){
 
-  traffic.sub <- traffic_major[traffic_major$Road_name == roadnames[e],]
+  traffic.sub <- traffic_major[traffic_major$road_name == roadnames[e],]
   traffic.sub <- traffic.sub[!duplicated(traffic.sub$geometry),]
   lines.sub <- lines.nona[lines.nona$ref == roadnames[e],]
 

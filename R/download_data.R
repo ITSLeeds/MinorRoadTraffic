@@ -18,7 +18,7 @@ download_osm = function(x = "Leeds, UK", bbox = NULL){
 
 #' Download DfT Traffic Counts
 #'
-#' @param x name passed to osmdata default "Leeds, UK"
+#' @param url URL of DfT data
 #' @export
 #'
 download_dft_aadt <- function(
@@ -29,13 +29,16 @@ download_dft_aadt <- function(
   utils::download.file(url, file.path(tempdir(),"dftaadt","dft_traffic_counts_aadf.zip"))
   utils::unzip(file.path(tempdir(),"dftaadt","dft_traffic_counts_aadf.zip"),
                exdir = file.path(tempdir(),"dftaadt"))
-  fls = list.files(file.path(tempdir(),"dftaadt"))
+  #fls = list.files(file.path(tempdir(),"dftaadt"))
 
   aadt = read.csv(file.path(tempdir(),"dftaadt","dft_traffic_counts_aadf.csv"))
 
   unlink(file.path(tempdir(),"dftaadt"), recursive = TRUE)
 
-  aadt = sf::st_as_sf(aadt,coords = c("Longitude","Latitude"),crs = 4326)
+  aadt = sf::st_as_sf(aadt,coords = c("longitude","latitude"),crs = 4326)
+
+  aadt$easting = NULL
+  aadt$northing = NULL
 
   return(aadt)
 }
