@@ -64,7 +64,7 @@ road_density = function(lines, zones, segment_length = 1000){
 
   zones$road_km <- road_km
 
-  zones <- zones |> mutate(area_km2 = as.numeric(st_area(geometry))/1e6,
+  zones <- zones |> dplyr::mutate(area_km2 = as.numeric(st_area(geometry))/1e6,
                             road_density = road_km/area_km2)
 
   message("Segmenting roads into sections of less than ",segment_length," metres")
