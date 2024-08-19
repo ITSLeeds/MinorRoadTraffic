@@ -1,7 +1,7 @@
 #' Segments lines
 #' From stplanr??
 #' @param l r?
-#' @segment_lenght ?
+#' @param segment_length ?
 #' @export
 line_segment <- function(l, segment_length = NA) {
 
